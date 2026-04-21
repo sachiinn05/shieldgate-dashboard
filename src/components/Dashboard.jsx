@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
+import { io } from "socket.io-client";
 import {
   LineChart,
   Line,
@@ -19,6 +20,7 @@ const Dashboard = () => {
 
   const [timeline, setTimeline] = useState([]);
 
+  // 🔥 Fetch function (same)
   const fetchData = async () => {
     try {
       const statsRes = await axios.get(
@@ -37,9 +39,23 @@ const Dashboard = () => {
   };
 
   useEffect(() => {
+    // ✅ Initial load
     fetchData();
-    const interval = setInterval(fetchData, 3000);
-    return () => clearInterval(interval);
+
+    // 🔥 Connect socket
+    const socket = io("http://localhost:8001");
+
+    // 🔥 Listen for backend events
+    socket.on("request_update", () => {
+      console.log("⚡ Real-time update received");
+
+      // ✅ Update UI instantly
+      fetchData();
+    });
+
+    return () => {
+      socket.disconnect(); // cleanup
+    };
   }, []);
 
   return (
