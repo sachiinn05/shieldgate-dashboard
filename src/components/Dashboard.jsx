@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
 import { io } from "socket.io-client";
+import toast from "react-hot-toast";
 import {
   LineChart,
   Line,
@@ -11,6 +11,8 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
+let lastAlertTime = 0; 
+
 const Dashboard = () => {
   const [stats, setStats] = useState({
     totalRequests: 0,
@@ -20,48 +22,58 @@ const Dashboard = () => {
 
   const [timeline, setTimeline] = useState([]);
 
-  // 🔥 Fetch function (same)
-  const fetchData = async () => {
-    try {
-      const statsRes = await axios.get(
-        "http://localhost:8001/api/stats/overview"
-      );
-
-      const timelineRes = await axios.get(
-        "http://localhost:8001/api/stats/timeline"
-      );
-
-      setStats(statsRes.data);
-      setTimeline(timelineRes.data);
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
   useEffect(() => {
-    // ✅ Initial load
-    fetchData();
-
-    // 🔥 Connect socket
     const socket = io("http://localhost:8001");
 
-    // 🔥 Listen for backend events
-    socket.on("request_update", () => {
-      console.log("⚡ Real-time update received");
+    socket.on("request_update", (data) => {
+      console.log("🔥 Streaming:", data);
 
-      // ✅ Update UI instantly
-      fetchData();
+    
+      if (!data.allowed) {
+        const now = Date.now();
+
+        if (now - lastAlertTime > 2000) {
+          lastAlertTime = now;
+
+          toast.error("🚨 Rate limit exceeded!", {
+            duration: 2000,
+          });
+
+          const audio = new Audio("/transcendedlifting-race-start-beeps-125125.mp3");
+          audio.volume = 0.5;
+          audio.play().catch(() => {});
+        }
+      }
+
+  
+      setStats((prev) => ({
+        totalRequests: prev.totalRequests + 1,
+        allowed: data.allowed ? prev.allowed + 1 : prev.allowed,
+        blocked: !data.allowed ? prev.blocked + 1 : prev.blocked,
+      }));
+
+  
+      const time = new Date(data.timestamp)
+        .toLocaleTimeString()
+        .slice(0, 5);
+
+    
+      setTimeline((prev) => {
+        const updated = [
+          ...prev,
+          { time, requests: data.totalRequests },
+        ];
+        return updated.slice(-20);
+      });
     });
 
-    return () => {
-      socket.disconnect(); // cleanup
-    };
+    return () => socket.disconnect();
   }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 text-white p-6">
-      
-      {/* Header */}
+    
+     
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold tracking-wide">
           🚀 ShieldGate Dashboard
@@ -69,26 +81,26 @@ const Dashboard = () => {
         <span className="text-sm text-gray-300">Live Monitoring</span>
       </div>
 
-      {/* Stats Cards */}
+   
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
         
-        <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl shadow-lg hover:scale-105 transition">
+        <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl shadow-lg">
           <p className="text-gray-300 text-sm">Total Requests</p>
           <h2 className="text-2xl font-bold mt-2">{stats.totalRequests}</h2>
         </div>
 
-        <div className="bg-green-500/20 backdrop-blur-lg p-6 rounded-2xl shadow-lg hover:scale-105 transition">
+        <div className="bg-green-500/20 backdrop-blur-lg p-6 rounded-2xl shadow-lg">
           <p className="text-green-300 text-sm">Allowed</p>
           <h2 className="text-2xl font-bold mt-2">{stats.allowed}</h2>
         </div>
 
-        <div className="bg-red-500/20 backdrop-blur-lg p-6 rounded-2xl shadow-lg hover:scale-105 transition">
+        <div className="bg-red-500/20 backdrop-blur-lg p-6 rounded-2xl shadow-lg">
           <p className="text-red-300 text-sm">Blocked</p>
           <h2 className="text-2xl font-bold mt-2">{stats.blocked}</h2>
         </div>
       </div>
 
-      {/* Chart Section */}
+  
       <div className="bg-white/10 backdrop-blur-lg p-6 rounded-2xl shadow-lg">
         <h2 className="text-xl font-semibold mb-6 text-gray-200">
           📈 Requests Timeline
@@ -99,14 +111,7 @@ const Dashboard = () => {
             <CartesianGrid strokeDasharray="3 3" stroke="#444" />
             <XAxis dataKey="time" stroke="#ccc" />
             <YAxis stroke="#ccc" />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: "#1e293b",
-                border: "none",
-                borderRadius: "10px",
-                color: "#fff",
-              }}
-            />
+            <Tooltip />
             <Line
               type="monotone"
               dataKey="requests"
