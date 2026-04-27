@@ -27,13 +27,11 @@ const Dashboard = () => {
   const [user, setUser] = useState(null);
   const [currentApiKey, setCurrentApiKey] = useState(apiKey);
 
-  //  Fetch user
+  // ✅ FIXED: Fetch user using COOKIE (no headers)
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const res = await API.get("/api/auth/me", {
-          headers: { "x-api-key": apiKey },
-        });
+        const res = await API.get("/api/user/me"); // 🔥 FIX HERE
         setUser(res.data);
       } catch {
         toast.error("User fetch failed");
@@ -50,7 +48,6 @@ const Dashboard = () => {
     socket.on("request_update", (data) => {
       console.log(" Streaming:", data);
 
-      //  Alert
       if (!data.allowed) {
         const now = Date.now();
         if (now - lastAlertTime > 2000) {
@@ -63,14 +60,12 @@ const Dashboard = () => {
         }
       }
 
-      // Update stats
       setStats((prev) => ({
         totalRequests: prev.totalRequests + 1,
         allowed: data.allowed ? prev.allowed + 1 : prev.allowed,
         blocked: !data.allowed ? prev.blocked + 1 : prev.blocked,
       }));
 
-      // Timeline
       const time = new Date(data.timestamp)
         .toLocaleTimeString()
         .slice(0, 5);
@@ -84,20 +79,20 @@ const Dashboard = () => {
     return () => socket.disconnect();
   }, []);
 
-  //  Copy API key
+  // Copy API key
   const copyKey = () => {
     navigator.clipboard.writeText(currentApiKey);
     toast.success("API Key copied ✅");
   };
 
-  //  Regenerate API key
+  // Regenerate API key
   const regenerateKey = async () => {
     try {
       const res = await API.post(
-        "/api/auth/regenerate-key",
+        "/api/user/regenerate-key", // 🔥 FIX ROUTE
         {},
         {
-          headers: { "x-api-key": currentApiKey },
+          headers: { "x-api-key": currentApiKey }, // still needed
         }
       );
 
@@ -116,7 +111,7 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0f172a] via-[#020617] to-black text-white p-8">
 
-      {/*  HEADER */}
+      {/* HEADER */}
       <div className="text-center mb-12">
         <h1 className="text-5xl font-extrabold bg-gradient-to-r from-blue-400 to-cyan-300 text-transparent bg-clip-text">
           🚀 ShieldGate
@@ -126,7 +121,7 @@ const Dashboard = () => {
         </p>
       </div>
 
-      {/*  TOP GRID */}
+      {/* TOP GRID */}
       <div className="grid md:grid-cols-2 gap-6 mb-10">
 
         {/* API KEY CARD */}
@@ -171,7 +166,7 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/*  STATS */}
+      {/* STATS */}
       <div className="grid md:grid-cols-3 gap-6 mb-10">
 
         <div className="bg-white/5 p-6 rounded-2xl border border-white/10">
@@ -190,7 +185,7 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/*  PROFILE */}
+      {/* PROFILE */}
       {user && (
         <div className="bg-white/5 p-6 rounded-2xl border border-white/10 mb-10">
           <h2 className="mb-3">👤 Profile</h2>
@@ -199,7 +194,7 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/*  CHART */}
+      {/* CHART */}
       <div className="bg-white/5 backdrop-blur-xl border border-white/10 p-8 rounded-2xl">
         <h2 className="mb-6">📈 Requests Timeline</h2>
 

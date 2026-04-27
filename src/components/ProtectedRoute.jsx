@@ -1,13 +1,26 @@
+import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
+import API from "../services/api";
 
 const ProtectedRoute = ({ children }) => {
-  const apiKey = localStorage.getItem("apiKey");
+  const [isAuth, setIsAuth] = useState(null);
 
-  if (!apiKey) {
-    return <Navigate to="/login" replace />;
-  }
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        await API.get("/api/stats/overview"); // protected route
+        setIsAuth(true);
+      } catch {
+        setIsAuth(false);
+      }
+    };
 
-  return children;
+    checkAuth();
+  }, []);
+
+  if (isAuth === null) return null;
+
+  return isAuth ? children : <Navigate to="/login" replace />;
 };
 
 export default ProtectedRoute;

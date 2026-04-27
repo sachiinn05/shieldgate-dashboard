@@ -1,25 +1,46 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import API from "../services/api";
 import toast from "react-hot-toast";
 import { Navigate } from "react-router-dom";
-
+import { useNavigate } from "react-router-dom";
 const Register = () => {
+    const navigate = useNavigate();
   const [form, setForm] = useState({
     name: "",
     email: "",
     password: "",
   });
 
-  if (localStorage.getItem("apiKey")) {
-    return <Navigate to="/" />;
-  }
+  const [isAuth, setIsAuth] = useState(null); 
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        await API.get("/api/user/me");
+        setIsAuth(true);
+      } catch {
+        setIsAuth(false);
+      }
+    };
+
+    checkAuth();
+  }, []);
+
+  if (isAuth === null) return null;
+
+  // ✅ redirect only if cookie is valid
+  if (isAuth) return <Navigate to="/" />;
 
   const handleSubmit = async () => {
     try {
       const res = await API.post("/api/auth/register", form);
+
+      // ✅ keep apiKey (for rate limit only)
       localStorage.setItem("apiKey", res.data.apiKey);
+
       toast.success("Account created 🎉");
-      window.location.href = "/";
+
+      navigate("/")
     } catch (err) {
       toast.error(err.response?.data?.message || "Error");
     }
